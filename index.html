@@ -1,245 +1,143 @@
+html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Калькулятор спреда</title>
+    <title>Калькулятор комиссий: ОТП Банк</title>
     <style>
-        /* Минимальные стили для отображения, чтобы всё не слипалось */
-        body { font-family: sans-serif; padding: 20px; background: #f7fafc; color: #2d3748; }
-        .calc-container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .input-row, .res-row { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; }
-        input { width: 120px; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; text-align: right; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f0f4f8; color: #2d3748; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); max-width: 600px; width: 100%; padding: 30px; }
+        h1 { text-align: center; margin-bottom: 25px; color: #1a365d; font-size: 22px; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; }
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .full-width { grid-column: span 2; }
+        @media (max-width: 500px) { .grid-inputs { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+        .input-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 6px; font-weight: 600; color: #4a5568; font-size: 13px; }
+        input { padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: #3182ce; }
+        button { width: 100%; background-color: #3182ce; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; margin-bottom: 25px; }
+        button:hover { background-color: #2b6cb0; }
+        .results-box { background: #f7fafc; border: 1px solid #edf2f7; border-radius: 10px; padding: 20px; }
+        .res-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14px; }
+        .res-row:last-child { border-bottom: none; padding-top: 15px; font-size: 16px; }
         .val { font-weight: bold; }
-        .profit { color: #38a169; }
         .loss { color: #e53e3e; }
-        .status-container { display: flex; align-items: center; margin-bottom: 15px; font-size: 14px; }
-        #status-icon { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background-color: #cbd5e0; }
+        .profit { color: #38a169; }
+        .highlight { font-size: 18px; }
     </style>
 </head>
 <body>
 
-<div class="calc-container">
-    <!-- Блок статуса загрузки курсов валют -->
-    <div class="status-container">
-        <div id="status-icon"></div>
-        <span id="status-text">Ожидание загрузки...</span>
-    </div>
-
-    <!-- Поля ввода для калькулятора -->
-    <div class="input-row">
-        <span>Сумма (EUR):</span>
-        <input type="text" id="amount" value="10000" oninput="saveInputs(); runCalculation();">
-    </div>
-    <div class="input-row">
-        <span>Базовый курс EUR:</span>
-        <input type="text" id="rateEurBase" value="0" oninput="saveInputs(); runCalculation();">
-    </div>
-    <div class="input-row">
-        <span>Базовый курс USD:</span>
-        <input type="text" id="rateUsdBase" value="0" oninput="saveInputs(); runCalculation();">
-    </div>
-    <div class="input-row">
-        <span>Спред EUR:</span>
-        <input type="text" id="rateEurSpread" value="1.5" oninput="saveInputs(); runCalculation();">
-    </div>
-
-    <hr>
-
-    <!-- Блок результатов из вашего первого сообщения -->
-    <div class="res-row">
-        <span>Грязная экономия:</span>
-        <span id="gross-saving" class="val">0.00 ₽</span>
-    </div>
-    <div class="res-row">
-        <span>Комиссия (EUR):</span>
-        <span id="fee-eur" class="val">0.00 €</span>
-    </div>
-    <div class="res-row">
-        <span>Комиссия (RUB):</span>
-        <span id="fee-rub" class="val loss">0.00 ₽</span>
-    </div>
-    <div class="res-row">
-        <span>Валютный контроль (USD):</span>
-        <span id="vc-usd" class="val">0.00 $</span>
-    </div>
-    <div class="res-row">
-        <span>Валютный контроль (RUB):</span>
-        <span id="vc-rub" class="val loss">0.00 ₽</span>
-    </div>
-    <div class="res-row">
-        <span>Всего комиссий:</span>
-        <span id="total-fees" class="val loss">0.00 ₽</span>
-    </div>
-    <div class="res-row">
-        <span>Чистая прибыль:</span>
-        <span id="net-profit" class="val profit highlight">0.00 ₽</span>
-    </div>
+<div class="container">
+    <h1>Калькулятор переводов (ОТП Банк)</h1>
     
-    <div style="margin-top: 15px; text-align: center;">
-        <button onclick="downloadTxtReport()" style="padding: 8px 12px; background: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer;">Скачать отчет (TXT)</button>
+    <div class="grid-inputs">
+        <div class="input-group full-width">
+            <label for="amount">Сумма перевода (EUR, €):</label>
+            <input type="number" id="amount" value="170000" min="0">
+        </div>
+        <div class="input-group">
+            <label for="rateEurBase">Базовый курс EUR (₽):</label>
+            <input type="number" id="rateEurBase" value="85.55" step="0.01">
+        </div>
+        <div class="input-group">
+            <label for="rateUsdBase">Базовый курс USD (₽):</label>
+            <input type="number" id="rateUsdBase" value="73.46" step="0.01">
+        </div>
+        <div class="input-group full-width">
+            <label for="rateEurSpread">Размер спреда EUR (₽):</label>
+            <input type="number" id="rateEurSpread" value="2.2" step="0.1">
+        </div>
+    </div>
+
+    <button onclick="runCalculation()">Рассчитать</button>
+
+    <div class="results-box">
+        <div class="res-row">
+            <span>Грязная экономия (Gross saving):</span>
+            <span id="gross-saving" class="val">0.00 ₽</span>
+        </div>
+        <div class="res-row">
+            <span>Комиссия за перевод (EUR):</span>
+            <span id="fee-eur" class="val">0.00 €</span>
+        </div>
+        <div class="res-row">
+            <span>Комиссия за перевод (RUB):</span>
+            <span id="fee-rub" class="val loss">0.00 ₽</span>
+        </div>
+        <div class="res-row">
+            <span>Валютный контроль (USD + НДС):</span>
+            <span id="vc-usd" class="val">0.00 $</span>
+        </div>
+        <div class="res-row">
+            <span>Валютный контроль (RUB):</span>
+            <span id="vc-rub" class="val loss">0.00 ₽</span>
+        </div>
+        <div class="res-row">
+            <span>Всего комиссий (Total fees):</span>
+            <span id="total-fees" class="val loss">0.00 ₽</span>
+        </div>
+        <div class="res-row">
+            <span>Чистая прибыль (Net profit):</span>
+            <span id="net-profit" class="val profit highlight">0.00 ₽</span>
+        </div>
     </div>
 </div>
 
 <script>
-// Глобальный объект для хранения данных отчета
-let textReportData = {};
-
-// Точные URL-адреса для получения JSON-данных напрямую
-const sources = [
-    { 
-        url: 'https://cbr-xml-daily.ru', 
-        type: 'cbr' 
-    },
-    { 
-        url: 'https://er-api.com', 
-        type: 'api' 
-    }
-];
-
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
-    loadSavedInputs();
-    fetchCbrRates();
-});
-
-function loadSavedInputs() {
-    if (localStorage.getItem('amount')) document.getElementById('amount').value = localStorage.getItem('amount');
-    if (localStorage.getItem('rateEurBase')) document.getElementById('rateEurBase').value = localStorage.getItem('rateEurBase');
-    if (localStorage.getItem('rateUsdBase')) document.getElementById('rateUsdBase').value = localStorage.getItem('rateUsdBase');
-    if (localStorage.getItem('rateEurSpread')) document.getElementById('rateEurSpread').value = localStorage.getItem('rateEurSpread');
-}
-
-function saveInputs() {
-    localStorage.setItem('amount', document.getElementById('amount').value);
-    localStorage.setItem('rateEurBase', document.getElementById('rateEurBase').value);
-    localStorage.setItem('rateUsdBase', document.getElementById('rateUsdBase').value);
-    localStorage.setItem('rateEurSpread', document.getElementById('rateEurSpread').value);
-}
-
-async function fetchCbrRates() {
-    const statusText = document.getElementById('status-text');
-    const statusIcon = document.getElementById('status-icon');
-    
-    if (statusText) statusText.innerText = 'Загрузка актуальных курсов...';
-    if (statusIcon) statusIcon.style.backgroundColor = '#4299e1'; // Синий
-
-    for (let source of sources) {
-        try {
-            const response = await fetch(source.url);
-            if (!response.ok) throw new Error('Сбой сети');
-            const data = await response.json();
-            
-            if (source.type === 'cbr') {
-                if (!data.Valute || !data.Valute.EUR || !data.Valute.USD) throw new Error('Неполные данные ЦБ');
-                document.getElementById('rateEurBase').value = data.Valute.EUR.Value.toFixed(2);
-                document.getElementById('rateUsdBase').value = data.Valute.USD.Value.toFixed(2);
-            } else if (source.type === 'api') {
-                if (!data.rates || !data.rates.EUR || !data.rates.USD) throw new Error('Неполные данные зеркала');
-                document.getElementById('rateEurBase').value = (1 / data.rates.EUR).toFixed(2);
-                document.getElementById('rateUsdBase').value = (1 / data.rates.USD).toFixed(2);
-            }
-            
-            if (statusText) statusText.innerText = 'Курсы ЦБ РФ успешно обновлены';
-            if (statusIcon) statusIcon.style.backgroundColor = '#38a169'; // Зеленый
-            saveInputs();
-            runCalculation();
-            return;
-        } catch (e) {
-            console.warn(`Ошибка загрузки с ${source.url}:`, e.message);
-        }
-    }
-    
-    if (statusText) statusText.innerText = 'Не удалось обновить курсы. Введите вручную.';
-    if (statusIcon) statusIcon.style.backgroundColor = '#e53e3e'; // Красный
-    runCalculation();
-}
-
-// Форматирование чисел для вывода
-function formatRub(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'; }
-function formatEur(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
-function formatUsd(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; }
-
-function getNum(id) {
-    var element = document.getElementById(id);
-    if (!element) return 0;
-    var val = element.value.toString().replace(',', '.').replace(/\s/g, ''); 
-    return parseFloat(val) || 0;
-}
-
-// Основная логика расчетов банковских комиссий
 function runCalculation() {
-    const amount = getNum('amount');
-    const rateEurBase = getNum('rateEurBase');
-    const rateUsdBase = getNum('rateUsdBase');
-    const rateEurSpread = getNum('rateEurSpread');
+    // Считываем значения из полей
+    const amount_eur = parseFloat(document.getElementById('amount').value) || 0;
+    const rate_eur_base = parseFloat(document.getElementById('rateEurBase').value) || 0;
+    const rate_usd_base = parseFloat(document.getElementById('rateUsdBase').value) || 0;
+    const rate_eur_spread = parseFloat(document.getElementById('rateEurSpread').value) || 0;
 
-    // 1. Грязная экономия
-    const grossSaving = amount * rateEurSpread;
+    // 1. Экономия на конвертации
+    const gross_saving = amount_eur * rate_eur_spread;
 
-    // 2. Комиссия за SWIFT-перевод
-    let feeEur = amount * 0.02;
-    if (feeEur < 40) feeEur = 40;
-    if (feeEur > 500) feeEur = 500;
-    if (amount === 0) feeEur = 0;
-    const feeRub = feeEur * (rateEurBase + rateEurSpread);
-
-    // 3. Валютный контроль + НДС 22%
-    const amountInUsd = (amount * (rateEurBase + rateEurSpread)) / rateUsdBase;
-    let vcUsdBase = amountInUsd * 0.0015;
-    if (vcUsdBase < 25) vcUsdBase = 25;
-    if (vcUsdBase > 150) vcUsdBase = 150;
-    if (amount === 0) vcUsdBase = 0;
-    
-    const vcUsdTotal = vcUsdBase * 1.22;
-    const vcRub = vcUsdTotal * rateUsdBase;
-
-    // 4. Итоговые показатели
-    const totalFees = feeRub + vcRub;
-    const netProfit = grossSaving - totalFees;
-
-    // Сохранение данных для экспорта
-    textReportData = {
-        date: new Date().toLocaleString('ru-RU'),
-        amount, rateEurBase, rateUsdBase, rateEurSpread,
-        grossSaving, feeEur, feeRub, vcUsdTotal, vcRub, totalFees, netProfit
-    };
-
-    // Обновление DOM-структуры
-    document.getElementById('gross-saving').innerText = formatRub(grossSaving);
-    document.getElementById('fee-eur').innerText = formatEur(feeEur);
-    document.getElementById('fee-rub').innerText = "- " + formatRub(feeRub);
-    document.getElementById('vc-usd').innerText = formatUsd(vcUsdTotal);
-    document.getElementById('vc-rub').innerText = "- " + formatRub(vcRub);
-    document.getElementById('total-fees').innerText = formatRub(totalFees);
-    
-    const netProfitEl = document.getElementById('net-profit');
-    netProfitEl.innerText = formatRub(netProfit);
-    
-    if (netProfit < 0) {
-        netProfitEl.className = 'val loss highlight';
-    } else {
-        netProfitEl.className = 'val profit highlight';
+    // 2. Комиссия за перевод (0.6%, min 200, max 750 EUR)
+    let transfer_fee_eur = amount_eur * 0.006;
+    if (transfer_fee_eur < 200) {
+        transfer_fee_eur = 200;
+    } else if (transfer_fee_eur > 750) {
+        transfer_fee_eur = 750;
     }
+    const transfer_fee_rub = transfer_fee_eur * rate_eur_base;
+
+    // 3. Валютный контроль (0.15%, min 20, max 700 USD) + 22% НДС
+    let vc_usd_base = amount_eur * 0.0015;
+    if (vc_usd_base < 20) {
+        vc_usd_base = 20;
+    } else if (vc_usd_base > 700) {
+        vc_usd_base = 700;
+    }
+    const vc_usd_with_vat = vc_usd_base * 1.22;
+    const vc_rub = vc_usd_with_vat * rate_usd_base;
+
+    // Итоги
+    const total_fees = transfer_fee_rub + vc_rub;
+    const net_profit = gross_saving - total_fees;
+
+    // Форматирование чисел для красивого вывода
+    const formatterRub = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' });
+    const formatterEur = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+    const formatterUsd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+    // Вывод результатов на экран
+    document.getElementById('gross-saving').innerText = formatterRub.format(gross_saving);
+    document.getElementById('fee-eur').innerText = formatterEur.format(transfer_fee_eur);
+    document.getElementById('fee-rub').innerText = "- " + formatterRub.format(transfer_fee_rub);
+    document.getElementById('vc-usd').innerText = formatterUsd.format(vc_usd_with_vat);
+    document.getElementById('vc-rub').innerText = "- " + formatterRub.format(vc_rub);
+    document.getElementById('total-fees').innerText = formatterRub.format(total_fees);
+    document.getElementById('net-profit').innerText = formatterRub.format(net_profit);
 }
 
-// Генерация и скачивание TXT отчета
-function downloadTxtReport() {
-    if (!textReportData.date) {
-        alert('Сначала выполните расчет!');
-        return;
-    }
-    const d = textReportData;
-    const reportText = `========================================
-ОТЧЕТ ПО ВАЛЮТНОМУ ПЕРЕВОДУ
-Дата расчета: ${d.date}
-========================================
-ВХОДНЫЕ ДАННЫЕ:
-Сумма перевода: ${d.amount.toFixed(2)} EUR
-Базовый курс EUR: ${d.rateEurBase.toFixed(2)} руб.
-Базовый курс USD: ${d.rateUsdBase.toFixed(2)} руб.
-Размер спреда EUR: ${d.rateEurSpread.toFixed(2)} руб.
+// Запуск расчета при открытии страницы
+window.onload = runCalculation;
+</script>
 
-РЕЗУЛЬТАТЫ РАСЧЕТА:
-----------------------------------------
-Грязная экономия (Gross saving): ${d.grossSaving.toFixed(2)} руб.
+</body>
+</html>
