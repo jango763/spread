@@ -1,24 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор спреда</title>
+    <style>
+        /* Минимальные стили для отображения, чтобы всё не слипалось */
+        body { font-family: sans-serif; padding: 20px; background: #f7fafc; color: #2d3748; }
+        .calc-container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .input-row, .res-row { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; }
+        input { width: 120px; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; text-align: right; }
+        .val { font-weight: bold; }
+        .profit { color: #38a169; }
+        .loss { color: #e53e3e; }
+        .status-container { display: flex; align-items: center; margin-bottom: 15px; font-size: 14px; }
+        #status-icon { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background-color: #cbd5e0; }
+    </style>
+</head>
+<body>
+
+<div class="calc-container">
+    <!-- Блок статуса загрузки курсов валют -->
+    <div class="status-container">
+        <div id="status-icon"></div>
+        <span id="status-text">Ожидание загрузки...</span>
+    </div>
+
+    <!-- Поля ввода для калькулятора -->
+    <div class="input-row">
+        <span>Сумма (EUR):</span>
+        <input type="text" id="amount" value="10000" oninput="saveInputs(); runCalculation();">
+    </div>
+    <div class="input-row">
+        <span>Базовый курс EUR:</span>
+        <input type="text" id="rateEurBase" value="0" oninput="saveInputs(); runCalculation();">
+    </div>
+    <div class="input-row">
+        <span>Базовый курс USD:</span>
+        <input type="text" id="rateUsdBase" value="0" oninput="saveInputs(); runCalculation();">
+    </div>
+    <div class="input-row">
+        <span>Спред EUR:</span>
+        <input type="text" id="rateEurSpread" value="1.5" oninput="saveInputs(); runCalculation();">
+    </div>
+
+    <hr>
+
+    <!-- Блок результатов из вашего первого сообщения -->
+    <div class="res-row">
+        <span>Грязная экономия:</span>
+        <span id="gross-saving" class="val">0.00 ₽</span>
+    </div>
+    <div class="res-row">
+        <span>Комиссия (EUR):</span>
+        <span id="fee-eur" class="val">0.00 €</span>
+    </div>
+    <div class="res-row">
+        <span>Комиссия (RUB):</span>
+        <span id="fee-rub" class="val loss">0.00 ₽</span>
+    </div>
+    <div class="res-row">
+        <span>Валютный контроль (USD):</span>
+        <span id="vc-usd" class="val">0.00 $</span>
+    </div>
+    <div class="res-row">
+        <span>Валютный контроль (RUB):</span>
+        <span id="vc-rub" class="val loss">0.00 ₽</span>
+    </div>
+    <div class="res-row">
+        <span>Всего комиссий:</span>
+        <span id="total-fees" class="val loss">0.00 ₽</span>
+    </div>
+    <div class="res-row">
+        <span>Чистая прибыль:</span>
+        <span id="net-profit" class="val profit highlight">0.00 ₽</span>
+    </div>
+    
+    <div style="margin-top: 15px; text-align: center;">
+        <button onclick="downloadTxtReport()" style="padding: 8px 12px; background: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer;">Скачать отчет (TXT)</button>
+    </div>
+</div>
+
+<script>
+// Глобальный объект для хранения данных отчета
+let textReportData = {};
+
 // Точные URL-адреса для получения JSON-данных напрямую
 const sources = [
     { 
-        // Главное API курсов ЦБ РФ (требуется конкретный js-файл)
-        url: 'https://www.cbr-xml-daily.ru/daily_json.js', 
+        url: 'https://cbr-xml-daily.ru', 
         type: 'cbr' 
     },
     { 
-        // Официальное и бесплатное зеркало курсов (базовая валюта - RUB)
-        // ИСПРАВЛЕНО: Добавлен точный путь к JSON-эндпоинту API
         url: 'https://er-api.com', 
         type: 'api' 
     }
 ];
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedInputs();
+    fetchCbrRates();
+});
+
+function loadSavedInputs() {
+    if (localStorage.getItem('amount')) document.getElementById('amount').value = localStorage.getItem('amount');
+    if (localStorage.getItem('rateEurBase')) document.getElementById('rateEurBase').value = localStorage.getItem('rateEurBase');
+    if (localStorage.getItem('rateUsdBase')) document.getElementById('rateUsdBase').value = localStorage.getItem('rateUsdBase');
+    if (localStorage.getItem('rateEurSpread')) document.getElementById('rateEurSpread').value = localStorage.getItem('rateEurSpread');
+}
+
+function saveInputs() {
+    localStorage.setItem('amount', document.getElementById('amount').value);
+    localStorage.setItem('rateEurBase', document.getElementById('rateEurBase').value);
+    localStorage.setItem('rateUsdBase', document.getElementById('rateUsdBase').value);
+    localStorage.setItem('rateEurSpread', document.getElementById('rateEurSpread').value);
+}
 
 async function fetchCbrRates() {
     const statusText = document.getElementById('status-text');
     const statusIcon = document.getElementById('status-icon');
     
     if (statusText) statusText.innerText = 'Загрузка актуальных курсов...';
-    if (statusIcon) statusIcon.style.backgroundColor = '#4299e1'; // Синий (загрузка)
+    if (statusIcon) statusIcon.style.backgroundColor = '#4299e1'; // Синий
 
     for (let source of sources) {
         try {
@@ -27,30 +131,115 @@ async function fetchCbrRates() {
             const data = await response.json();
             
             if (source.type === 'cbr') {
-                // Структура ЦБ РФ: данные лежат в объекте Valute, курс идет в лоб (1 единица валюты = X рублей)
                 if (!data.Valute || !data.Valute.EUR || !data.Valute.USD) throw new Error('Неполные данные ЦБ');
                 document.getElementById('rateEurBase').value = data.Valute.EUR.Value.toFixed(2);
                 document.getElementById('rateUsdBase').value = data.Valute.USD.Value.toFixed(2);
             } else if (source.type === 'api') {
-                // Структура ExchangeRate-API: при базовой RUB курс показывает, сколько единиц валюты дают за 1 рубль.
-                // Чтобы получить стоимость валюты в рублях, нужно разделить 1 на это значение.
                 if (!data.rates || !data.rates.EUR || !data.rates.USD) throw new Error('Неполные данные зеркала');
                 document.getElementById('rateEurBase').value = (1 / data.rates.EUR).toFixed(2);
                 document.getElementById('rateUsdBase').value = (1 / data.rates.USD).toFixed(2);
             }
             
             if (statusText) statusText.innerText = 'Курсы ЦБ РФ успешно обновлены';
-            if (statusIcon) statusIcon.style.backgroundColor = '#38a169'; // Зеленый (успех)
+            if (statusIcon) statusIcon.style.backgroundColor = '#38a169'; // Зеленый
             saveInputs();
             runCalculation();
-            return; // Прерываем цикл, так как данные успешно получены
+            return;
         } catch (e) {
             console.warn(`Ошибка загрузки с ${source.url}:`, e.message);
         }
     }
     
-    // Сюда код дойдет, только если оба источника упали
     if (statusText) statusText.innerText = 'Не удалось обновить курсы. Введите вручную.';
-    if (statusIcon) statusIcon.style.backgroundColor = '#e53e3e'; // Красный (ошибка)
+    if (statusIcon) statusIcon.style.backgroundColor = '#e53e3e'; // Красный
     runCalculation();
 }
+
+// Форматирование чисел для вывода
+function formatRub(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'; }
+function formatEur(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+function formatUsd(val) { return val.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; }
+
+function getNum(id) {
+    var element = document.getElementById(id);
+    if (!element) return 0;
+    var val = element.value.toString().replace(',', '.').replace(/\s/g, ''); 
+    return parseFloat(val) || 0;
+}
+
+// Основная логика расчетов банковских комиссий
+function runCalculation() {
+    const amount = getNum('amount');
+    const rateEurBase = getNum('rateEurBase');
+    const rateUsdBase = getNum('rateUsdBase');
+    const rateEurSpread = getNum('rateEurSpread');
+
+    // 1. Грязная экономия
+    const grossSaving = amount * rateEurSpread;
+
+    // 2. Комиссия за SWIFT-перевод
+    let feeEur = amount * 0.02;
+    if (feeEur < 40) feeEur = 40;
+    if (feeEur > 500) feeEur = 500;
+    if (amount === 0) feeEur = 0;
+    const feeRub = feeEur * (rateEurBase + rateEurSpread);
+
+    // 3. Валютный контроль + НДС 22%
+    const amountInUsd = (amount * (rateEurBase + rateEurSpread)) / rateUsdBase;
+    let vcUsdBase = amountInUsd * 0.0015;
+    if (vcUsdBase < 25) vcUsdBase = 25;
+    if (vcUsdBase > 150) vcUsdBase = 150;
+    if (amount === 0) vcUsdBase = 0;
+    
+    const vcUsdTotal = vcUsdBase * 1.22;
+    const vcRub = vcUsdTotal * rateUsdBase;
+
+    // 4. Итоговые показатели
+    const totalFees = feeRub + vcRub;
+    const netProfit = grossSaving - totalFees;
+
+    // Сохранение данных для экспорта
+    textReportData = {
+        date: new Date().toLocaleString('ru-RU'),
+        amount, rateEurBase, rateUsdBase, rateEurSpread,
+        grossSaving, feeEur, feeRub, vcUsdTotal, vcRub, totalFees, netProfit
+    };
+
+    // Обновление DOM-структуры
+    document.getElementById('gross-saving').innerText = formatRub(grossSaving);
+    document.getElementById('fee-eur').innerText = formatEur(feeEur);
+    document.getElementById('fee-rub').innerText = "- " + formatRub(feeRub);
+    document.getElementById('vc-usd').innerText = formatUsd(vcUsdTotal);
+    document.getElementById('vc-rub').innerText = "- " + formatRub(vcRub);
+    document.getElementById('total-fees').innerText = formatRub(totalFees);
+    
+    const netProfitEl = document.getElementById('net-profit');
+    netProfitEl.innerText = formatRub(netProfit);
+    
+    if (netProfit < 0) {
+        netProfitEl.className = 'val loss highlight';
+    } else {
+        netProfitEl.className = 'val profit highlight';
+    }
+}
+
+// Генерация и скачивание TXT отчета
+function downloadTxtReport() {
+    if (!textReportData.date) {
+        alert('Сначала выполните расчет!');
+        return;
+    }
+    const d = textReportData;
+    const reportText = `========================================
+ОТЧЕТ ПО ВАЛЮТНОМУ ПЕРЕВОДУ
+Дата расчета: ${d.date}
+========================================
+ВХОДНЫЕ ДАННЫЕ:
+Сумма перевода: ${d.amount.toFixed(2)} EUR
+Базовый курс EUR: ${d.rateEurBase.toFixed(2)} руб.
+Базовый курс USD: ${d.rateUsdBase.toFixed(2)} руб.
+Размер спреда EUR: ${d.rateEurSpread.toFixed(2)} руб.
+
+РЕЗУЛЬТАТЫ РАСЧЕТА:
+----------------------------------------
+Грязная экономия (Gross saving): ${d.grossSaving.toFixed(2)} руб.
